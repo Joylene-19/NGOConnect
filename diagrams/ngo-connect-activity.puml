@@ -1,0 +1,161 @@
+@startuml NGOConnect_Activity_Diagram
+
+title Activity Diagram - NGOConnect Volunteer Management System
+
+|#LightBlue|User|
+start
+:Access NGOConnect Platform;
+note right: User opens website at localhost:5175
+
+if (User Type?) then (NGO)
+  |#LightGreen|NGO|
+  :Login with NGO Credentials;
+  if (Login Successful?) then (yes)
+    :Access NGO Dashboard;
+    note right: JWT token stored
+    
+    repeat
+      :Choose Activity;
+      if (Activity Type?) then (Create Task)
+        :Fill Task Details;
+        note right
+          - Title, Description
+          - Location, Date, Duration
+          - Max Volunteers, Category
+          - Required Skills, Urgency
+        end note
+        :Set Requirements & Date;
+        :Publish Task;
+        :Task Posted to Database;
+        :Task Available for Applications;
+      elseif (Review Applications)
+        :View Pending Applications;
+        note right: Real-time updates every 30s
+        if (Application Decision?) then (Approve)
+          :Approve Application;
+          :Send Email Notification;
+          :Update Application Status;
+          :Volunteer Tracking Updated;
+        else (Reject)
+          :Reject Application;
+          :Send Rejection Notice;
+          :Update Application Status;
+        endif
+      elseif (Mark Attendance)
+        :View Today's Active Tasks;
+        :Select Task;
+        :Mark Volunteer Attendance;
+        :Record Hours Completed;
+        :Update Task Progress;
+      elseif (Generate Certificate)
+        :View Completed Tasks;
+        :Select Task with Volunteers;
+        :Generate Completion Certificate;
+        :Send Certificate to Volunteer;
+        :Store Certificate Record;
+      else (Manage Profile)
+        :Update NGO Information;
+        :Modify Contact Details;
+        :Save Changes;
+      endif
+    repeat while (More Activities?) is (yes)
+    
+  else (no)
+    :Display Login Error;
+    :Show Error Message;
+    stop
+  endif
+
+else (Volunteer)
+  |#LightCoral|Volunteer|
+  :Login with Volunteer Credentials;
+  if (Login Successful?) then (yes)
+    :Access Volunteer Dashboard;
+    note right: Auto-refresh every 30 seconds
+    
+    repeat
+      :Choose Activity;
+      if (Activity Type?) then (Browse Tasks)
+        :View Available Tasks;
+        :Apply Filters;
+        note right
+          - Category
+          - Location
+          - Date Range
+          - Skills Required
+        end note
+        :Select Task of Interest;
+        :Review Task Details;
+        :Submit Application;
+        :Application Status: Pending;
+      elseif (Track Applications)
+        :View My Applications;
+        :Check Status Updates;
+        if (Status Check?) then (Approved)
+          :View Upcoming Tasks;
+          note right: Status: "Upcoming"
+          :Prepare for Participation;
+        elseif (Pending)
+          :Wait for NGO Response;
+          note right: Status: "Pending"
+        else (Rejected)
+          :View Rejection;
+          :Search Other Tasks;
+        endif
+      elseif (View Tracking)
+        :Check Task Progress;
+        if (Task Status?) then (Upcoming)
+          :View Task Details;
+          :Prepare for Task;
+        elseif (In Progress)
+          :Track Current Participation;
+        else (Completed)
+          :View Completion History;
+          :Download Certificate;
+        endif
+      else (Update Profile)
+        :Modify Personal Information;
+        :Update Skills & Preferences;
+        :Save Profile Changes;
+      endif
+    repeat while (More Activities?) is (yes)
+    
+  else (no)
+    :Display Login Error;
+    :Show Error Message;
+    stop
+  endif
+
+else (New User)
+  |#LightYellow|New User|
+  :Click Sign Up;
+  :Choose User Type;
+  note right: NGO or Volunteer
+  :Fill Registration Form;
+  note right
+    - Email, Password
+    - Name, Contact Info
+    - Role-specific fields
+  end note
+  :Submit Registration;
+  if (Validation Successful?) then (yes)
+    :Hash Password;
+    :Store User in Database;
+    :Send Email Verification;
+    :Account Created Successfully;
+    :Redirect to Login Page;
+  else (no)
+    :Display Validation Errors;
+    :Show Error Messages;
+    :Return to Registration Form;
+    stop
+  endif
+endif
+
+|#LightBlue|User|
+:Logout;
+note right: Clear JWT token
+:Return to Login Page;
+stop
+
+@enduml

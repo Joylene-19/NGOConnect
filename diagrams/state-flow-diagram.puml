@@ -1,0 +1,136 @@
+@startuml NGO_Connect_State_Flow_Diagram
+!theme plain
+title NGO Connect Platform - State Flow Diagram
+
+state "System States" as System {
+  
+  state "User Management" as UserMgmt {
+    [*] --> Unregistered
+    Unregistered --> Registering : Register
+    Registering --> EmailVerification : Submit Details
+    EmailVerification --> Registered : Verify Email
+    EmailVerification --> Unregistered : Verification Failed
+    Registered --> LoggedIn : Login Success
+    Registered --> Unregistered : Login Failed
+    LoggedIn --> LoggedOut : Logout
+    LoggedOut --> LoggedIn : Login Again
+    LoggedOut --> Unregistered : Session Expired
+    
+    state Registered {
+      [*] --> Active
+      Active --> Suspended : Admin Action
+      Suspended --> Active : Admin Restore
+      Active --> Deleted : Account Deletion
+    }
+  }
+  
+  state "Task Lifecycle" as TaskLife {
+    [*] --> Draft
+    Draft --> Published : NGO Publishes
+    Draft --> Deleted : NGO Deletes Draft
+    Published --> InProgress : Applications Approved
+    Published --> Cancelled : NGO Cancels
+    InProgress --> Completed : Task Finished
+    InProgress --> Cancelled : Emergency Cancel
+    Completed --> Archived : After 30 Days
+    Cancelled --> Archived : After Review
+    
+    state Published {
+      [*] --> AcceptingApplications
+      AcceptingApplications --> ApplicationsClosed : Deadline Reached
+      ApplicationsClosed --> AcceptingApplications : Deadline Extended
+    }
+    
+    state InProgress {
+      [*] --> Ongoing
+      Ongoing --> AttendanceMarked : NGO Marks Attendance
+      AttendanceMarked --> Ongoing : Continue Task
+      AttendanceMarked --> ReadyForCompletion : All Sessions Done
+    }
+    
+    state Completed {
+      [*] --> CertificatesPending
+      CertificatesPending --> CertificatesGenerated : NGO Issues Certificates
+      CertificatesGenerated --> ReviewsCompleted : All Reviews Submitted
+    }
+  }
+  
+  state "Application Process" as AppProcess {
+    [*] --> NotApplied
+    NotApplied --> Applying : Volunteer Submits
+    Applying --> Pending : Application Submitted
+    Pending --> UnderReview : NGO Reviews
+    UnderReview --> Approved : NGO Approves
+    UnderReview --> Rejected : NGO Rejects
+    Approved --> Participating : Task Starts
+    Participating --> Completed : Task Ends
+    Rejected --> [*]
+    Completed --> Reviewed : Reviews Exchanged
+    
+    state Approved {
+      [*] --> WaitingForTask
+      WaitingForTask --> Confirmed : Volunteer Confirms
+      Confirmed --> WaitingForTask : Reschedule
+    }
+  }
+  
+  state "Certificate Status" as CertStatus {
+    [*] --> NotEligible
+    NotEligible --> Eligible : Task Completed
+    Eligible --> Generating : NGO Initiates
+    Generating --> Generated : PDF Created
+    Generated --> Issued : Email Sent
+    Issued --> Downloaded : Volunteer Downloads
+    Generated --> Revoked : Admin/NGO Revokes
+  }
+  
+  state "Review System" as ReviewSys {
+    [*] --> NoReview
+    NoReview --> PendingReview : Task Completed
+    PendingReview --> ReviewSubmitted : User Submits Review
+    ReviewSubmitted --> ReviewVisible : Admin Approves
+    ReviewVisible --> [*]
+    ReviewSubmitted --> ReviewRejected : Inappropriate Content
+    ReviewRejected --> PendingReview : Resubmit Required
+  }
+  
+  state "Email Notifications" as EmailNotif {
+    [*] --> Idle
+    Idle --> Queued : Event Triggered
+    Queued --> Sending : SMTP Processing
+    Sending --> Sent : Delivery Success
+    Sending --> Failed : Delivery Failed
+    Failed --> Queued : Retry Logic
+    Sent --> [*]
+    Failed --> [*] : Max Retries Reached
+  }
+  
+  state "System Health" as SysHealth {
+    [*] --> Healthy
+    Healthy --> Degraded : Performance Issues
+    Healthy --> Down : Critical Failure
+    Degraded --> Healthy : Issues Resolved
+    Degraded --> Down : Critical Failure
+    Down --> Degraded : Partial Recovery
+    Down --> Healthy : Full Recovery
+    
+    state Degraded {
+      [*] --> DatabaseSlow
+      [*] --> EmailServiceDown
+      [*] --> HighMemoryUsage
+      DatabaseSlow --> [*] : Query Optimized
+      EmailServiceDown --> [*] : Service Restored
+      HighMemoryUsage --> [*] : Memory Cleared
+    }
+  }
+}
+
+note top of UserMgmt : User authentication and account management states
+note top of TaskLife : Complete task lifecycle from creation to archival
+note top of AppProcess : Volunteer application process states
+note top of CertStatus : Certificate generation and distribution states
+note top of ReviewSys : Review and rating system states
+note top of EmailNotif : Email notification delivery states
+note top of SysHealth : System monitoring and health states
+
+@enduml

@@ -1,0 +1,120 @@
+@startuml NGO_Connect_Sequence_Diagram
+!theme plain
+title NGO Connect Platform - Sequence Diagram (Task Application Flow)
+
+actor Volunteer as V
+actor NGO as N
+participant "Web Browser" as WB
+participant "Frontend\n(React)" as FE
+participant "Backend API\n(Express)" as BE
+participant "Database\n(MongoDB)" as DB
+participant "Email Service\n(Gmail)" as ES
+
+== Authentication ==
+V -> WB: Access Platform
+WB -> FE: Load Login Page
+V -> FE: Enter Credentials
+FE -> BE: POST /api/auth/login
+BE -> DB: Validate User
+DB -> BE: User Data
+BE -> FE: JWT Token + User Info
+FE -> WB: Redirect to Dashboard
+
+== Task Discovery ==
+V -> FE: Browse Tasks
+FE -> BE: GET /api/tasks/available
+BE -> DB: Query Open Tasks
+DB -> BE: Task List
+BE -> FE: Filtered Tasks
+FE -> WB: Display Available Tasks
+
+== Task Application ==
+V -> FE: Select Task & Apply
+FE -> BE: POST /api/tasks/{id}/apply
+BE -> DB: Create Application
+DB -> BE: Application Created
+BE -> DB: Get NGO Details
+DB -> BE: NGO Info
+BE -> ES: Send Application Notification
+ES -> N: Email Notification
+BE -> FE: Application Success
+FE -> WB: Show Success Message
+
+== Application Review ==
+N -> WB: Check Applications
+WB -> FE: Load NGO Dashboard
+FE -> BE: GET /api/my-task-applications
+BE -> DB: Query Applications
+DB -> BE: Application List
+BE -> FE: Applications Data
+FE -> WB: Display Applications
+
+N -> FE: Approve/Reject Application
+FE -> BE: PUT /api/applications/{id}
+BE -> DB: Update Application Status
+DB -> BE: Status Updated
+BE -> DB: Get Volunteer Details
+DB -> BE: Volunteer Info
+BE -> ES: Send Status Notification
+ES -> V: Email Notification
+BE -> FE: Update Success
+FE -> WB: Refresh Dashboard
+
+== Task Participation ==
+V -> FE: View Approved Tasks
+FE -> BE: GET /api/my-applications
+BE -> DB: Query Volunteer Applications
+DB -> BE: Application Data
+BE -> FE: Approved Tasks
+FE -> WB: Show Task Schedule
+
+== Task Completion ==
+N -> FE: Mark Task Complete
+FE -> BE: PUT /api/tasks/{id}
+note right: Status: completed
+BE -> DB: Update Task Status
+DB -> BE: Task Updated
+BE -> FE: Success Response
+FE -> WB: Show Completion
+
+== Certificate Generation ==
+N -> FE: Generate Certificate
+FE -> BE: POST /api/certificates/generate
+BE -> DB: Verify Task Completion
+DB -> BE: Verification Data
+BE -> BE: Generate PDF Certificate
+BE -> DB: Store Certificate Record
+DB -> BE: Record Saved
+BE -> ES: Send Certificate Email
+ES -> V: Certificate Notification
+BE -> FE: Certificate URL
+FE -> WB: Download Link
+
+== Review System ==
+V -> FE: Submit Review for NGO
+FE -> BE: POST /api/reviews
+BE -> DB: Store Review
+DB -> BE: Review Saved
+BE -> FE: Review Success
+FE -> WB: Thank You Message
+
+N -> FE: Submit Review for Volunteer
+FE -> BE: POST /api/reviews
+BE -> DB: Store Review
+DB -> BE: Review Saved
+BE -> FE: Review Success
+FE -> WB: Thank You Message
+
+== Error Handling ==
+alt Authentication Failure
+  BE -> FE: 401 Unauthorized
+  FE -> WB: Redirect to Login
+else Validation Error
+  BE -> FE: 400 Bad Request
+  FE -> WB: Show Error Message
+else Server Error
+  BE -> FE: 500 Internal Error
+  FE -> WB: Show Generic Error
+end
+
+@enduml

@@ -1,0 +1,150 @@
+@startuml NGOConnect_Sequence_Diagram
+
+title Sequence Diagram - NGOConnect Application Flow
+
+actor "Volunteer" as V
+actor "NGO" as N
+participant "Frontend\n(React)" as F
+participant "Backend\n(Express)" as B
+participant "Database\n(MongoDB)" as DB
+participant "Email Service" as E
+
+== User Registration and Login ==
+
+V -> F: Access registration page
+F -> V: Display registration form
+V -> F: Submit registration data
+F -> B: POST /api/register
+B -> B: Validate input data
+B -> B: Hash password
+B -> DB: Store user data
+DB -> B: User created successfully
+B -> E: Send welcome email
+B -> F: Registration successful
+F -> V: Show success message
+
+V -> F: Access login page
+F -> V: Display login form
+V -> F: Submit credentials
+F -> B: POST /api/login
+B -> DB: Verify credentials
+DB -> B: User validated
+B -> B: Generate JWT token
+B -> F: Return token & user data
+F -> F: Store token in localStorage
+F -> V: Redirect to dashboard
+
+== Task Management (NGO Side) ==
+
+N -> F: Access NGO dashboard
+F -> B: GET /api/tasks (with JWT)
+B -> B: Verify token
+B -> DB: Fetch NGO's tasks
+DB -> B: Return tasks data
+B -> F: Tasks data
+F -> N: Display tasks
+
+N -> F: Create new task
+F -> N: Show task creation form
+N -> F: Submit task details
+F -> B: POST /api/tasks
+B -> B: Validate task data
+B -> DB: Create task record
+DB -> B: Task created
+B -> F: Success response
+F -> N: Task created successfully
+
+== Application Process ==
+
+V -> F: Browse available tasks
+F -> B: GET /api/tasks
+B -> DB: Fetch available tasks
+DB -> B: Tasks data
+B -> F: Available tasks
+F -> V: Display task list
+
+V -> F: Apply for task
+F -> B: POST /api/applications
+B -> B: Validate application
+B -> DB: Create application record
+DB -> B: Application created
+B -> F: Application submitted
+F -> V: Application confirmation
+
+== Application Review and Approval ==
+
+N -> F: View applications
+F -> B: GET /api/my-task-applications
+B -> DB: Fetch pending applications
+DB -> B: Applications data
+B -> F: Applications list
+F -> N: Display applications
+
+N -> F: Approve application
+F -> B: POST /api/applications/{id}/approve
+B -> B: Verify NGO permissions
+B -> DB: Update application status
+DB -> B: Status updated
+B -> E: Send approval notification
+E -> V: Email notification sent
+B -> F: Approval successful
+F -> N: Show success message
+
+== Volunteer Tracking Update ==
+
+F -> B: GET /api/my-applications (auto-refresh)
+note right: Every 30 seconds
+B -> DB: Fetch volunteer applications
+DB -> B: Updated applications
+B -> F: Applications with new status
+F -> F: Calculate tracking status
+note right
+  - Upcoming: current date < task start
+  - In Progress: task start <= current <= task end
+  - Completed: current date > task end
+end note
+F -> V: Display updated tracking
+
+== Attendance Management ==
+
+N -> F: Access attendance tab
+F -> B: GET /api/attendance/today
+B -> DB: Fetch today's tasks
+DB -> B: Active tasks
+B -> F: Today's tasks
+F -> N: Display attendance interface
+
+N -> F: Mark volunteer attendance
+F -> B: POST /api/attendance/mark
+B -> B: Validate attendance data
+B -> DB: Record attendance
+DB -> B: Attendance recorded
+B -> F: Success response
+F -> N: Attendance marked
+
+== Certificate Generation ==
+
+N -> F: Generate certificate
+F -> B: POST /api/certificates/generate
+B -> DB: Verify task completion
+DB -> B: Task and volunteer data
+B -> B: Generate certificate
+B -> DB: Store certificate record
+DB -> B: Certificate saved
+B -> E: Send certificate to volunteer
+E -> V: Certificate email sent
+B -> F: Certificate generated
+F -> N: Success message
+
+== Error Handling ==
+
+F -> B: Any API request fails
+B -> F: Error response (4xx/5xx)
+F -> F: Parse error message
+F -> V: Display user-friendly error
+note right
+  Network errors show fallback
+  to direct backend URL
+end note
+
+@enduml

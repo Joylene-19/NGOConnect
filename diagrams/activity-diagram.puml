@@ -1,0 +1,110 @@
+@startuml NGO_Connect_Activity_Diagram
+!theme plain
+title NGO Connect Platform - Activity Diagram
+
+|Volunteer|
+start
+:Visit NGO Connect Platform;
+:Register/Login as Volunteer;
+
+if (Authentication Successful?) then (yes)
+  :Access Volunteer Dashboard;
+  :Browse Available Tasks;
+  
+  if (Task of Interest Found?) then (yes)
+    :View Task Details;
+    :Submit Application with Motivation;
+    
+    |NGO|
+    :Receive Application Notification;
+    :Review Application;
+    
+    if (Application Approved?) then (yes)
+      :Send Approval Notification;
+      
+      |Volunteer|
+      :Receive Approval Email;
+      :Participate in Task;
+      :Mark Attendance;
+      
+      |NGO|
+      :Verify Attendance;
+      :Mark Task as Completed;
+      :Generate Certificate;
+      
+      |Volunteer|
+      :Receive Certificate;
+      :Submit Review/Rating;
+      
+      |NGO|
+      :Submit Review for Volunteer;
+      
+    else (rejected)
+      :Send Rejection Notification;
+      
+      |Volunteer|
+      :Receive Rejection Email;
+      :Search for Other Tasks;
+    endif
+    
+  else (no)
+    :Continue Browsing;
+    :Apply Filters (Skills, Location);
+  endif
+  
+else (no)
+  :Show Authentication Error;
+  :Retry Login/Registration;
+endif
+
+|NGO|
+start
+:Visit NGO Connect Platform;
+:Register/Login as NGO;
+
+if (Authentication Successful?) then (yes)
+  :Access NGO Dashboard;
+  :View Dashboard Statistics;
+  
+  if (Create New Task?) then (yes)
+    :Fill Task Creation Form;
+    :Set Requirements & Skills;
+    :Set Date & Location;
+    :Publish Task;
+    :Task Available for Applications;
+    
+    repeat
+      :Receive Volunteer Applications;
+      :Review Application Details;
+      :Approve/Reject Applications;
+    repeat while (More Applications?)
+    
+    :Monitor Task Progress;
+    :Mark Attendance;
+    :Complete Task;
+    :Generate Certificates;
+    :Rate Volunteers;
+    
+  else (manage existing)
+    :View Posted Tasks;
+    :Edit/Update Tasks;
+    :Delete Tasks if Needed;
+  endif
+  
+else (no)
+  :Show Authentication Error;
+  :Retry Login/Registration;
+endif
+
+|Admin|
+start
+:Access Admin Panel;
+:Monitor Platform Activity;
+:Manage Users (NGOs/Volunteers);
+:Review Reports;
+:Moderate Content;
+:System Maintenance;
+
+stop
+
+@enduml

@@ -1,0 +1,147 @@
+@startuml NGO_Connect_Use_Case_Diagram
+!theme plain
+title NGO Connect Platform - Use Case Diagram
+
+left to right direction
+
+actor "Volunteer" as V
+actor "NGO" as N
+actor "System Administrator" as A
+actor "Email System" as E
+
+rectangle "NGO Connect Platform" {
+  
+  package "Authentication System" {
+    usecase "Register Account" as UC1
+    usecase "Login to Platform" as UC2
+    usecase "Reset Password" as UC3
+    usecase "Logout" as UC4
+  }
+  
+  package "Task Management" {
+    usecase "Create Task" as UC5
+    usecase "Edit Task" as UC6
+    usecase "Delete Task" as UC7
+    usecase "View Tasks" as UC8
+    usecase "Search Tasks" as UC9
+    usecase "Filter Tasks" as UC10
+  }
+  
+  package "Application Process" {
+    usecase "Apply for Task" as UC11
+    usecase "View Applications" as UC12
+    usecase "Approve Application" as UC13
+    usecase "Reject Application" as UC14
+    usecase "Track Application Status" as UC15
+  }
+  
+  package "Attendance Management" {
+    usecase "Mark Attendance" as UC16
+    usecase "Verify Attendance" as UC17
+    usecase "View Attendance Records" as UC18
+  }
+  
+  package "Certificate System" {
+    usecase "Generate Certificate" as UC19
+    usecase "Download Certificate" as UC20
+    usecase "Verify Certificate" as UC21
+  }
+  
+  package "Review System" {
+    usecase "Submit Review" as UC22
+    usecase "View Reviews" as UC23
+    usecase "Rate Performance" as UC24
+  }
+  
+  package "Dashboard & Analytics" {
+    usecase "View Dashboard" as UC25
+    usecase "View Statistics" as UC26
+    usecase "Generate Reports" as UC27
+  }
+  
+  package "Communication" {
+    usecase "Send Notifications" as UC28
+    usecase "Email Alerts" as UC29
+    usecase "Contact Support" as UC30
+  }
+  
+  package "Admin Functions" {
+    usecase "Manage Users" as UC31
+    usecase "Monitor System" as UC32
+    usecase "Moderate Content" as UC33
+    usecase "System Maintenance" as UC34
+  }
+}
+
+' Volunteer relationships
+V --> UC1
+V --> UC2
+V --> UC3
+V --> UC4
+V --> UC8
+V --> UC9
+V --> UC10
+V --> UC11
+V --> UC15
+V --> UC20
+V --> UC22
+V --> UC23
+V --> UC25
+V --> UC30
+
+' NGO relationships
+N --> UC1
+N --> UC2
+N --> UC3
+N --> UC4
+N --> UC5
+N --> UC6
+N --> UC7
+N --> UC8
+N --> UC12
+N --> UC13
+N --> UC14
+N --> UC16
+N --> UC17
+N --> UC18
+N --> UC19
+N --> UC21
+N --> UC22
+N --> UC23
+N --> UC25
+N --> UC26
+N --> UC27
+N --> UC30
+
+' Admin relationships
+A --> UC2
+A --> UC4
+A --> UC31
+A --> UC32
+A --> UC33
+A --> UC34
+A --> UC27
+
+' Email System relationships
+E --> UC28
+E --> UC29
+
+' Include relationships
+UC11 ..> UC28 : <<include>>
+UC13 ..> UC29 : <<include>>
+UC14 ..> UC29 : <<include>>
+UC19 ..> UC29 : <<include>>
+
+' Extend relationships
+UC9 ..> UC10 : <<extend>>
+UC12 ..> UC13 : <<extend>>
+UC12 ..> UC14 : <<extend>>
+UC18 ..> UC19 : <<extend>>
+
+note top of UC1 : User registration with role selection (NGO/Volunteer)
+note top of UC5 : NGOs create tasks with requirements and deadlines
+note top of UC11 : Volunteers apply with motivation letters
+note top of UC19 : Auto-generated certificates for completed tasks
+note top of UC22 : Bidirectional review system for quality assurance
+
+@enduml

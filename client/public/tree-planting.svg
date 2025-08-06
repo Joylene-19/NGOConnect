@@ -1,0 +1,16 @@
+<!-- Placeholder SVG for Tree Planting -->
+<svg width="300" height="200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200">
+  <defs>
+    <linearGradient id="treeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#22c55e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#16a34a;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="300" height="200" fill="url(#treeGrad)"/>
+  <rect x="140" y="120" width="20" height="60" fill="#92400e"/>
+  <circle cx="150" cy="110" r="35" fill="#16a34a" opacity="0.9"/>
+  <circle cx="130" cy="90" r="25" fill="#22c55e" opacity="0.8"/>
+  <circle cx="170" cy="90" r="25" fill="#22c55e" opacity="0.8"/>
+  <ellipse cx="150" cy="175" rx="50" ry="8" fill="#65a30d" opacity="0.6"/>
+  <text x="150" y="195" text-anchor="middle" fill="white" font-size="16" font-weight="bold">Tree Planting</text>
+</svg>
