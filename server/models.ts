@@ -153,6 +153,10 @@ const taskSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  ngoId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   appliedVolunteers: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

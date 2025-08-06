@@ -1962,29 +1962,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/attendance/task/:taskId", verifyToken, async (req: any, res) => {
-    try {
-      const { role, userId } = req.user;
-      const { taskId } = req.params;
-
-      // Verify access to this task
-      if (role === "ngo") {
-        const task = await storage.getTask(taskId);
-        if (!task || task.ngoId !== userId) {
-          return res.status(403).json({ error: "You can only view attendance for your own tasks" });
-        }
-      } else if (role !== "admin") {
-        return res.status(403).json({ error: "Insufficient permissions" });
-      }
-
-      const attendance = await storage.getAttendanceByTask(taskId);
-      res.json(attendance);
-    } catch (error) {
-      console.error("Error fetching attendance:", error);
-      res.status(500).json({ error: "Failed to fetch attendance records" });
-    }
-  });
-
   app.put("/api/attendance/:id", verifyToken, async (req: any, res) => {
     try {
       const { role, userId } = req.user;
@@ -2045,6 +2022,251 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error verifying attendance:", error);
       res.status(500).json({ error: "Failed to verify attendance" });
+    }
+  });
+
+  // Get today's tasks for attendance management (NEW)
+  app.get("/api/attendance/tasks/today", verifyToken, async (req: any, res) => {
+    try {
+      const { role, userId } = req.user;
+
+      // Only NGOs can view today's tasks for attendance
+      if (role !== "ngo") {
+        return res.status(403).json({ error: "Only NGOs can view today's tasks" });
+      }
+
+      // Get today's date range
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+      
+      // Get all tasks for this NGO that are scheduled for today
+      const todaysTasks = await Task.find({
+        ngoId: userId,
+        date: { $gte: startOfDay, $lte: endOfDay },
+        status: { $ne: 'closed' }
+      }).populate('appliedVolunteers', 'name email')
+        .populate('approvedVolunteers', 'name email')
+        .lean();
+
+      // For each task, get the attendance records and applications
+      const tasksWithAttendance = await Promise.all(
+        todaysTasks.map(async (task) => {
+          // Get all approved applications for this task
+          const applications = await TaskApplication.find({
+            taskId: task._id,
+            status: 'approved'
+          }).populate('volunteerId', 'name email').lean();
+
+          // Get attendance records for this task
+          const attendanceRecords = await Attendance.find({
+            taskId: task._id
+          }).lean();
+
+          // Create a map of attendance by volunteer ID
+          const attendanceMap = new Map();
+          attendanceRecords.forEach(record => {
+            attendanceMap.set(record.volunteerId.toString(), record);
+          });
+
+          // Combine application and attendance data
+          const volunteers = applications.map(app => ({
+            id: app.volunteerId._id,
+            name: app.volunteerId.name,
+            email: app.volunteerId.email,
+            applicationId: app._id,
+            attendance: attendanceMap.get(app.volunteerId._id.toString()) || null,
+            attendanceStatus: attendanceMap.get(app.volunteerId._id.toString())?.status || 'not-marked'
+          }));
+
+          return {
+            id: task._id,
+            title: task.title,
+            description: task.description,
+            location: task.location,
+            date: task.date,
+            hours: task.hours,
+            volunteers,
+            totalVolunteers: volunteers.length,
+            presentCount: volunteers.filter(v => v.attendanceStatus === 'present').length,
+            absentCount: volunteers.filter(v => v.attendanceStatus === 'absent').length,
+            pendingCount: volunteers.filter(v => v.attendanceStatus === 'not-marked').length
+          };
+        })
+      );
+
+      res.json(tasksWithAttendance);
+    } catch (error) {
+      console.error("Error fetching today's tasks:", error);
+      res.status(500).json({ error: "Failed to fetch today's tasks" });
+    }
+  });
+
+  // Get tasks for a specific date (NEW)
+  app.get("/api/attendance/tasks/:date", verifyToken, async (req: any, res) => {
+    try {
+      const { role, userId } = req.user;
+      const { date } = req.params;
+
+      // Only NGOs can view tasks for attendance
+      if (role !== "ngo") {
+        return res.status(403).json({ error: "Only NGOs can view tasks for attendance" });
+      }
+
+      // Validate date format
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({ error: "Invalid date format. Use YYYY-MM-DD" });
+      }
+
+      // Create date range for the specified date
+      const targetDate = new Date(date);
+      const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0);
+      const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
+
+      // Get all tasks for this NGO on the specified date
+      const dateTasks = await Task.find({
+        ngoId: userId,
+        date: { $gte: startOfDay, $lte: endOfDay },
+        status: { $ne: 'closed' }
+      }).populate('appliedVolunteers', 'name email')
+        .populate('approvedVolunteers', 'name email')
+        .lean();
+      // Similar processing as today's tasks
+      const tasksWithAttendance = await Promise.all(
+        dateTasks.map(async (task) => {
+          const applications = await TaskApplication.find({
+            taskId: task._id,
+            status: 'approved'
+          }).populate('volunteerId', 'name email').lean();
+
+          const attendanceRecords = await Attendance.find({
+            taskId: task._id
+          }).lean();
+
+          const attendanceMap = new Map();
+          attendanceRecords.forEach(record => {
+            attendanceMap.set(record.volunteerId.toString(), record);
+          });
+
+          const volunteers = applications.map(app => ({
+            id: app.volunteerId._id,
+            name: app.volunteerId.name,
+            email: app.volunteerId.email,
+            applicationId: app._id,
+            attendance: attendanceMap.get(app.volunteerId._id.toString()) || null,
+            attendanceStatus: attendanceMap.get(app.volunteerId._id.toString())?.status || 'not-marked'
+          }));
+
+          return {
+            id: task._id,
+            title: task.title,
+            description: task.description,
+            location: task.location,
+            date: task.date,
+            hours: task.hours,
+            volunteers,
+            totalVolunteers: volunteers.length,
+            presentCount: volunteers.filter(v => v.attendanceStatus === 'present').length,
+            absentCount: volunteers.filter(v => v.attendanceStatus === 'absent').length,
+            pendingCount: volunteers.filter(v => v.attendanceStatus === 'not-marked').length
+          };
+        })
+      );
+
+      res.json(tasksWithAttendance);
+    } catch (error) {
+      console.error("Error fetching tasks for date:", error);
+      res.status(500).json({ error: "Failed to fetch tasks for date" });
+    }
+  });
+
+  // Certificate Template Management
+  app.post("/api/certificate-templates", verifyToken, async (req: any, res) => {
+    try {
+      const { role, userId } = req.user;
+      console.log('- User ID:', userId);
+      console.log('- Role:', role);
+
+      // Only NGOs can view task attendance
+      if (role !== "ngo") {
+        return res.status(403).json({ error: "Only NGOs can view task attendance" });
+      }
+
+      // Get the specific task
+      const task = await Task.findById(taskId).lean();
+      if (!task) {
+        console.log('❌ Task not found');
+        return res.status(404).json({ error: "Task not found" });
+      }
+
+      console.log('✅ Task found:', task.title);
+      console.log('- Task ngoId:', task.ngoId?.toString());
+      console.log('- Task postedBy:', task.postedBy?.toString());
+
+      // Verify the task belongs to this NGO (use ngoId if available, fallback to postedBy)
+      const taskOwnerId = task.ngoId?.toString() || task.postedBy?.toString();
+      console.log('- Task owner ID:', taskOwnerId);
+      console.log('- Ownership check:', taskOwnerId === userId);
+      
+      if (taskOwnerId !== userId) {
+        console.log('❌ Authorization failed');
+        return res.status(403).json({ error: "You can only view attendance for your own tasks" });
+      }
+
+      console.log('✅ Authorization passed');
+
+      // Get all approved applications for this task
+      const applications = await TaskApplication.find({
+        taskId: taskId,
+        status: 'approved'
+      }).populate('volunteerId', 'name email').lean();
+
+      console.log('📋 Applications found:', applications.length);
+
+      // Get attendance records for this task
+      const attendanceRecords = await Attendance.find({
+        taskId: taskId
+      }).lean();
+
+      console.log('📊 Attendance records found:', attendanceRecords.length);
+
+      // Create a map of attendance by volunteer ID
+      const attendanceMap = new Map();
+      attendanceRecords.forEach(record => {
+        attendanceMap.set(record.volunteerId.toString(), record);
+      });
+
+      // Combine application and attendance data in the format frontend expects
+      const volunteers = applications.map(app => {
+        const attendance = attendanceMap.get(app.volunteerId._id.toString());
+        return {
+          volunteerId: app.volunteerId._id,
+          volunteerName: app.volunteerId.name,
+          volunteerEmail: app.volunteerId.email,
+          attendanceStatus: attendance?.status || 'pending',
+          hoursCompleted: attendance?.hoursCompleted || 0,
+          markedAt: attendance?.markedAt || null,
+          attendanceId: attendance?._id || null,
+          trackingStatus: 'Not Started' // Default tracking status
+        };
+      });
+
+      console.log('👥 Volunteers processed:', volunteers.length);
+
+      // Return in the format frontend expects
+      const taskAttendance = {
+        taskId: task._id,
+        taskTitle: task.title,
+        taskDate: task.date,
+        volunteers
+      };
+
+      console.log('📤 Sending response:', JSON.stringify(taskAttendance, null, 2));
+
+      res.json(taskAttendance);
+    } catch (error) {
+      console.error("Error fetching task attendance:", error);
+      res.status(500).json({ error: "Failed to fetch task attendance" });
     }
   });
 
@@ -2319,22 +2541,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { role, userId } = req.user;
       const { taskId } = req.params;
       
+      console.log('🔍 Individual task attendance endpoint called:');
+      console.log('- Role:', role);
+      console.log('- User ID:', userId);
+      console.log('- Task ID:', taskId);
+      
       if (role !== "ngo") {
+        console.log('❌ Authorization failed: Not an NGO');
         return res.status(403).json({ error: "Only NGOs can view attendance" });
       }
 
       // Verify the task belongs to the NGO
       const task = await storage.getTask(taskId);
-      if (!task || task.ngoId !== userId) {
+      console.log('📋 Task found:', !!task);
+      if (task) {
+        console.log('- Task ngoId:', task.ngoId);
+        console.log('- Task postedBy:', task.postedBy);
+        console.log('- Authorization check: ngoId match =', task.ngoId.toString() === userId);
+        console.log('- Authorization check: postedBy match =', task.postedBy ? task.postedBy.toString() === userId : false);
+      }
+      
+      if (!task || (task.ngoId.toString() !== userId && (!task.postedBy || task.postedBy.toString() !== userId))) {
+        console.log('❌ Authorization failed: Task ownership');
         return res.status(403).json({ error: "You can only view attendance for your own tasks" });
       }
 
       // Get approved volunteers for this task
       const applications = await storage.getApplicationsByTask(taskId);
+      console.log('📄 Applications found:', applications.length);
+      
       const approvedVolunteers = applications.filter(app => app.status === 'approved');
+      console.log('✅ Approved volunteers:', approvedVolunteers.length);
+      
+      if (approvedVolunteers.length > 0) {
+        console.log('📝 Approved volunteer details:');
+        approvedVolunteers.forEach((app, index) => {
+          console.log(`  ${index + 1}. ${app.volunteerName} (${app.volunteerEmail}) - ID: ${app.volunteerId}`);
+        });
+      }
       
       // Get attendance records
       const attendanceRecords = await storage.getAttendanceByTask(taskId);
+      console.log('📋 Attendance records found:', attendanceRecords.length);
       
       // Combine volunteer info with attendance status
       const attendanceData = approvedVolunteers.map(app => {
@@ -2350,14 +2598,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
 
-      res.json({
+      console.log('📊 Final attendance data:', attendanceData.length, 'records');
+      
+      const response = {
         taskId,
         taskTitle: task.title,
         taskDate: task.createdAt,
         volunteers: attendanceData
-      });
+      };
+      
+      console.log('🚀 Sending response:', JSON.stringify(response, null, 2));
+      res.json(response);
     } catch (error) {
-      console.error("Error fetching task attendance:", error);
+      console.error("❌ Error fetching task attendance:", error);
       res.status(500).json({ error: "Failed to fetch task attendance" });
     }
   });
