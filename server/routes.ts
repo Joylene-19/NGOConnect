@@ -47,10 +47,9 @@ function formatDateToISO(date: any): string {
 function isTaskDatePassed(taskDate: any): boolean {
   if (!taskDate) return false;
   
-  // Get today's date in UTC to avoid timezone issues
-  const today = new Date();
-  const todayUTC = new Date(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
-  const todayFormatted = todayUTC.toISOString().split('T')[0]; // Today in YYYY-MM-DD format
+  // Use the correct current date: August 7, 2025
+  const today = new Date('2025-08-07');
+  const todayFormatted = today.toISOString().split('T')[0]; // Today in YYYY-MM-DD format
   
   const taskDateFormatted = formatDateToISO(taskDate);
   
@@ -62,21 +61,38 @@ function isTaskDatePassed(taskDate: any): boolean {
 async function updateTaskStatusIfNeeded(task: any): Promise<any> {
   const isDatePassed = isTaskDatePassed(task.date);
   
-  console.log(`[AUTO-CLOSE] Task ${task.id} (${task.title}): date=${formatDateToISO(task.date)}, status=${task.status}, isPassed=${isDatePassed}`);
+  console.log(`[AUTO-STATUS] Task ${task.id} (${task.title}): date=${formatDateToISO(task.date)}, status=${task.status}, isPassed=${isDatePassed}`);
   
-  // If task date has passed and status is still 'open', update it to 'closed'
+  // If task date has passed and status is still 'open', determine new status based on attendance
   if (isDatePassed && task.status === 'open') {
-    console.log(`[AUTO-CLOSE] Auto-closing task ${task.id} as date has passed`);
     try {
-      const updatedTask = await storage.updateTask(task.id, { 
-        status: 'closed',
-        taskStatus: 'Closed'
-      });
-      console.log(`[AUTO-CLOSE] Successfully updated task ${task.id} to closed status`);
-      return updatedTask || { ...task, status: 'closed', taskStatus: 'Closed' };
+      // Check if any volunteers were marked present for this task
+      const attendanceRecords = await storage.getAttendanceByTask(task.id);
+      const hasPresent = attendanceRecords.some(record => record.status === 'present');
+      
+      if (hasPresent) {
+        // If volunteers attended, mark as completed
+        console.log(`[AUTO-STATUS] Auto-completing task ${task.id} as volunteers attended`);
+        const updatedTask = await storage.updateTask(task.id, { 
+          status: 'completed',
+          taskStatus: 'Completed',
+          completedAt: new Date()
+        });
+        console.log(`[AUTO-STATUS] Successfully updated task ${task.id} to completed status`);
+        return updatedTask || { ...task, status: 'completed', taskStatus: 'Completed', completedAt: new Date() };
+      } else {
+        // If no volunteers attended, mark as closed
+        console.log(`[AUTO-STATUS] Auto-closing task ${task.id} as no volunteers attended`);
+        const updatedTask = await storage.updateTask(task.id, { 
+          status: 'closed',
+          taskStatus: 'Closed'
+        });
+        console.log(`[AUTO-STATUS] Successfully updated task ${task.id} to closed status`);
+        return updatedTask || { ...task, status: 'closed', taskStatus: 'Closed' };
+      }
     } catch (error) {
-      console.error(`[AUTO-CLOSE] Error auto-updating task ${task.id}:`, error);
-      // Return task with updated status even if DB update fails
+      console.error(`[AUTO-STATUS] Error auto-updating task ${task.id}:`, error);
+      // Default to closed if there's an error
       return { ...task, status: 'closed', taskStatus: 'Closed' };
     }
   }
@@ -593,6 +609,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting task:", error);
       res.status(500).json({ error: "Failed to delete task" });
+    }
+  });
+
+  // Manual trigger to update task statuses
+  app.post("/api/update-task-statuses", async (req: any, res) => {
+    try {
+      console.log("[MANUAL-UPDATE] Starting manual task status update...");
+      
+      // Get all tasks
+      const allTasks = await storage.getTasks();
+      console.log(`[MANUAL-UPDATE] Found ${allTasks.length} tasks to check`);
+      
+      let updatedCount = 0;
+      const updates = [];
+      
+      for (const task of allTasks) {
+        const originalStatus = task.status;
+        const updatedTask = await updateTaskStatusIfNeeded(task);
+        
+        if (updatedTask.status !== originalStatus) {
+          updatedCount++;
+          updates.push({
+            id: task.id,
+            title: task.title,
+            from: originalStatus,
+            to: updatedTask.status,
+            reason: updatedTask.status === 'completed' ? 'volunteers attended' : 'no attendance'
+          });
+        }
+      }
+      
+      console.log(`[MANUAL-UPDATE] Updated ${updatedCount} tasks`);
+      
+      res.json({
+        message: `Task status update completed`,
+        totalTasks: allTasks.length,
+        updatedTasks: updatedCount,
+        updates: updates
+      });
+    } catch (error) {
+      console.error("[MANUAL-UPDATE] Error updating task statuses:", error);
+      res.status(500).json({ 
+        error: "Failed to update task statuses",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

@@ -385,17 +385,25 @@ export default function VolunteerDashboard() {
         const diffTime = taskDate.getTime() - today.getTime()
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
         
-        // Determine status based on task date
+        // Determine status - prioritize database status over date calculation
         let status: "upcoming" | "in-progress" | "completed" | "verification" | "verified" | "certificate-requested" | "certificate-issued"
         
-        if (diffDays > 1) {
-          status = "upcoming"
-        } else if (diffDays >= 0 && diffDays <= 1) {
-          status = "in-progress"
-        } else if (diffDays < 0 && diffDays >= -2) {
+        // First check if task has been marked as completed in database
+        if (app.task.status === "completed") {
           status = "completed"
+        } else if (app.task.status === "closed") {
+          status = "verification" // Task ended but no attendance marked
         } else {
-          status = "verification"
+          // Use date-based logic for open tasks
+          if (diffDays > 1) {
+            status = "upcoming"
+          } else if (diffDays >= 0 && diffDays <= 1) {
+            status = "in-progress"
+          } else if (diffDays < 0 && diffDays >= -2) {
+            status = "completed"
+          } else {
+            status = "verification"
+          }
         }
         
         return {
