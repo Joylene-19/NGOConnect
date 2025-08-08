@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { User, Task, TaskApplication, Review, Attendance, Certificate, CertificateTemplate } from "./models";
 import type { 
   InsertUser, 
@@ -692,6 +693,7 @@ export class MongoStorage {
         volunteerId: cert.volunteerId.toString(),
         certificateNumber: cert.certificateNumber,
         certificateUrl: cert.certificateUrl,
+        url: cert.certificateUrl, // Add this for frontend compatibility
         status: cert.status,
         generatedAt: cert.generatedAt,
         hoursCompleted: cert.hoursCompleted,
@@ -1177,6 +1179,7 @@ export class MongoStorage {
         id: cert._id.toString(),
         certificateNumber: cert.certificateNumber,
         certificateUrl: cert.certificateUrl,
+        url: cert.certificateUrl,
         status: cert.status,
         generatedAt: cert.generatedAt,
         downloadedAt: cert.downloadedAt,

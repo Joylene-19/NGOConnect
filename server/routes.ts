@@ -47,14 +47,306 @@ function formatDateToISO(date: any): string {
 function isTaskDatePassed(taskDate: any): boolean {
   if (!taskDate) return false;
   
-  // Use the correct current date: August 7, 2025
-  const today = new Date('2025-08-07');
+  // Use the actual current date
+  const today = new Date();
   const todayFormatted = today.toISOString().split('T')[0]; // Today in YYYY-MM-DD format
   
   const taskDateFormatted = formatDateToISO(taskDate);
   
   console.log(`[AUTO-CLOSE] Comparing: taskDate (${taskDateFormatted}) <= today (${todayFormatted})`);
   return taskDateFormatted <= todayFormatted; // Include tasks on the same date
+}
+
+// Helper function to generate certificate for a specific volunteer
+async function generateCertificateForVolunteer(taskId: string, volunteerId: string): Promise<boolean> {
+  try {
+    // Get task and volunteer data
+    const task = await Task.findById(taskId).populate('postedBy').lean();
+    const volunteer = await storage.getUser(volunteerId);
+    
+    if (!task || !volunteer) {
+      console.error(`[AUTO-CERT] Task or volunteer not found: taskId=${taskId}, volunteerId=${volunteerId}`);
+      return false;
+    }
+    
+    const ngo = task.postedBy;
+    if (!ngo) {
+      console.error(`[AUTO-CERT] NGO not found for task ${taskId}`);
+      return false;
+    }
+
+    // Generate certificate HTML (reusing the same template from the API route)
+    const certificateHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@400;500;600&display=swap');
+          
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          
+          body { 
+            font-family: 'Inter', sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+          }
+          
+          .certificate-container {
+            background: white;
+            width: 800px;
+            height: 600px;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+          }
+          
+          .certificate-border {
+            position: absolute;
+            inset: 20px;
+            border: 3px solid #0ea5e9;
+            border-radius: 8px;
+            background: linear-gradient(45deg, #f8fafc, #ffffff);
+          }
+          
+          .certificate-content {
+            position: absolute;
+            inset: 40px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+          }
+          
+          .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 16px rgba(14, 165, 233, 0.3);
+          }
+          
+          .logo svg {
+            width: 40px;
+            height: 40px;
+            fill: white;
+          }
+          
+          .title {
+            font-family: 'Playfair Display', serif;
+            font-size: 36px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 8px;
+            letter-spacing: 2px;
+          }
+          
+          .subtitle {
+            font-size: 16px;
+            color: #64748b;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+          }
+          
+          .recipient {
+            font-family: 'Playfair Display', serif;
+            font-size: 42px;
+            font-weight: 700;
+            color: #0ea5e9;
+            margin-bottom: 20px;
+            text-decoration: underline;
+            text-decoration-color: #0ea5e9;
+            text-underline-offset: 8px;
+            text-decoration-thickness: 2px;
+          }
+          
+          .achievement {
+            font-size: 18px;
+            color: #334155;
+            margin-bottom: 25px;
+            line-height: 1.6;
+            max-width: 500px;
+          }
+          
+          .task-title {
+            font-weight: 600;
+            color: #0f172a;
+            font-size: 20px;
+          }
+          
+          .organization {
+            font-weight: 600;
+            color: #0ea5e9;
+          }
+          
+          .details {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #e2e8f0;
+          }
+          
+          .detail-item {
+            text-align: center;
+          }
+          
+          .detail-label {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+          }
+          
+          .detail-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+          }
+          
+          .signature-line {
+            border-bottom: 2px solid #1e293b;
+            width: 200px;
+            margin-bottom: 5px;
+          }
+          
+          .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 120px;
+            color: rgba(14, 165, 233, 0.05);
+            font-weight: 700;
+            z-index: 0;
+            pointer-events: none;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="certificate-container">
+          <div class="watermark">VERIFIED</div>
+          <div class="certificate-border">
+            <div class="certificate-content">
+              <div class="logo">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                </svg>
+              </div>
+              
+              <h1 class="title">CERTIFICATE OF APPRECIATION</h1>
+              <p class="subtitle">This is to certify that</p>
+              
+              <div class="recipient">${volunteer.username}</div>
+              
+              <div class="achievement">
+                has successfully completed the volunteer service<br>
+                <span class="task-title">"${task.title}"</span><br>
+                organized by <span class="organization">${ngo.username}</span>
+              </div>
+              
+              <div class="details">
+                <div class="detail-item">
+                  <div class="detail-label">Date Completed</div>
+                  <div class="detail-value">${task.completedAt ? new Date(task.completedAt).toLocaleDateString() : new Date().toLocaleDateString()}</div>
+                </div>
+                
+                <div class="detail-item">
+                  <div class="detail-label">Duration</div>
+                  <div class="detail-value">${task.hours || 4} hours</div>
+                </div>
+                
+                <div class="detail-item">
+                  <div class="detail-label">Location</div>
+                  <div class="detail-value">${task.location}</div>
+                </div>
+                
+                <div class="detail-item">
+                  <div class="detail-label">Authorized by</div>
+                  <div class="signature-line"></div>
+                  <div class="detail-value">${ngo.username}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Generate PDF using Puppeteer
+    const browser = await puppeteer.launch({ 
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    
+    const page = await browser.newPage();
+    await page.setContent(certificateHtml, { waitUntil: 'networkidle0' });
+    
+    const pdfFileName = `certificate_${taskId}_${volunteerId}_${Date.now()}.pdf`;
+    const pdfPath = path.join(process.cwd(), 'server', 'certificates', pdfFileName);
+    
+    await page.pdf({
+      path: pdfPath,
+      format: 'A4',
+      landscape: true,
+      printBackground: true,
+      margin: {
+        top: '20px',
+        right: '20px',
+        bottom: '20px',
+        left: '20px'
+      }
+    });
+    
+    await browser.close();
+
+    // Store certificate record in database
+    const certificate = new Certificate({
+      taskId,
+      volunteerId,
+      certificateNumber: `NGO-${Date.now()}-${taskId.slice(-6)}`,
+      certificateUrl: `/api/certificates/download/${pdfFileName}`,
+      templateUsed: 'default',
+      status: 'generated',
+      generatedAt: new Date(),
+      hoursCompleted: task.hours || 4,
+      skills: []
+    });
+
+    await certificate.save();
+
+    // Send email notification to volunteer (async, don't wait for it)
+    emailService.sendCertificateNotification(
+      volunteer.email,
+      volunteer.username,
+      task.title,
+      ngo.username,
+      certificate.certificateUrl
+    ).catch(error => {
+      console.error(`[AUTO-CERT] Failed to send certificate notification email for ${volunteer.email}:`, error);
+    });
+
+    console.log(`[AUTO-CERT] ✅ Certificate saved to database with ID: ${certificate._id}`);
+    return true;
+    
+  } catch (error) {
+    console.error(`[AUTO-CERT] Error generating certificate:`, error);
+    return false;
+  }
 }
 
 // Utility function to auto-update task status based on date
@@ -79,6 +371,39 @@ async function updateTaskStatusIfNeeded(task: any): Promise<any> {
           completedAt: new Date()
         });
         console.log(`[AUTO-STATUS] Successfully updated task ${task.id} to completed status`);
+        
+        // 🎯 AUTO-GENERATE CERTIFICATES for all present volunteers
+        console.log(`[AUTO-CERT] Starting auto-certificate generation for task ${task.id}`);
+        try {
+          // Get all applications for this task
+          const applications = await storage.getApplicationsByTask(task.id);
+          const approvedApplications = applications.filter(app => app.status === 'approved');
+          
+          // Get present volunteers from attendance
+          const presentVolunteers = attendanceRecords.filter(record => record.status === 'present');
+          
+          console.log(`[AUTO-CERT] Found ${approvedApplications.length} approved volunteers and ${presentVolunteers.length} present volunteers`);
+          
+          // Generate certificates for volunteers who were both approved and present
+          for (const attendance of presentVolunteers) {
+            const application = approvedApplications.find(app => app.volunteerId === attendance.volunteerId);
+            if (application) {
+              try {
+                console.log(`[AUTO-CERT] Generating certificate for volunteer ${attendance.volunteerId} on task ${task.id}`);
+                
+                // Call the certificate generation logic (we'll need to extract this from the route)
+                await generateCertificateForVolunteer(task.id, attendance.volunteerId);
+                
+                console.log(`[AUTO-CERT] ✅ Certificate generated for volunteer ${attendance.volunteerId}`);
+              } catch (certError) {
+                console.error(`[AUTO-CERT] ❌ Failed to generate certificate for volunteer ${attendance.volunteerId}:`, certError);
+              }
+            }
+          }
+        } catch (autoGenerateError) {
+          console.error(`[AUTO-CERT] Error during auto-certificate generation:`, autoGenerateError);
+        }
+        
         return updatedTask || { ...task, status: 'completed', taskStatus: 'Completed', completedAt: new Date() };
       } else {
         // If no volunteers attended, mark as closed
@@ -1652,12 +1977,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         taskId,
         volunteerId,
         ngoId: userId,
+        certificateNumber: `NGO-${Date.now()}-${taskId.slice(-6)}`,
         certificateUrl: `/api/certificates/download/${pdfFileName}`,
-        issuedAt: new Date()
+        templateUsed: 'default',
+        status: 'generated',
+        generatedAt: new Date(),
+        hoursCompleted: task.hours || 4,
+        skills: []
       };
 
-      // TODO: Add certificate storage method to mongoStorage
-      // const savedCertificate = await storage.createCertificate(certificate);
+      // Save certificate to database
+      console.log('🔄 Attempting to save certificate to database:', certificate);
+      const savedCertificate = await storage.createCertificate(certificate);
+      console.log('✅ Certificate saved successfully:', savedCertificate);
 
       // Send email notification to volunteer (async, don't wait for it)
       emailService.sendCertificateNotification(

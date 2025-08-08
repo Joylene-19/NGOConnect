@@ -335,10 +335,10 @@ export default function VolunteerDashboard() {
         // Transform the data to match the expected Certificate interface
         const transformedCertificates: Certificate[] = data.map((cert: any) => ({
           id: cert.id,
-          taskTitle: cert.taskTitle,
-          ngoName: cert.ngoName,
+          taskTitle: cert.task?.title || 'Unknown Task',
+          ngoName: cert.task?.organization || 'Unknown Organization',
           issuedAt: cert.generatedAt,
-          certificateUrl: `/api/certificates/download/${cert.id}`,
+          certificateUrl: cert.url || cert.certificateUrl, // Use the actual URL from backend
           hours: cert.hoursCompleted
         }))
         setCertificates(transformedCertificates)

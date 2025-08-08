@@ -85,6 +85,102 @@ class EmailService {
 
     return this.sendEmail(email, subject, html);
   }
+
+  async sendCertificateNotification(
+    email: string, 
+    volunteerName: string, 
+    taskTitle: string, 
+    ngoName: string, 
+    certificateUrl: string
+  ): Promise<boolean> {
+    const subject = `Certificate Available: ${taskTitle}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2>🏆 Certificate Available!</h2>
+        <p>Hello ${volunteerName},</p>
+        <p>Congratulations! Your certificate for completing the volunteer task <strong>"${taskTitle}"</strong> with ${ngoName} is now ready.</p>
+        
+        <div style="background: #f0f9ff; padding: 15px; border-left: 4px solid #0ea5e9; margin: 20px 0;">
+          <h3 style="margin: 0 0 10px 0;">Certificate Details:</h3>
+          <p style="margin: 5px 0;"><strong>Task:</strong> ${taskTitle}</p>
+          <p style="margin: 5px 0;"><strong>Organization:</strong> ${ngoName}</p>
+          <p style="margin: 5px 0;"><strong>Volunteer:</strong> ${volunteerName}</p>
+        </div>
+        
+        <p>You can download your certificate by logging into your NGOConnect dashboard and visiting the Certificates section, or by accessing the direct link below:</p>
+        
+        <a href="${certificateUrl}" style="background: #0ea5e9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; margin: 10px 0;">Download Certificate</a>
+        
+        <p>Thank you for your valuable contribution to the community!</p>
+        
+        <p>Best regards,<br>The NGOConnect Team</p>
+      </div>
+    `;
+
+    return this.sendEmail(email, subject, html);
+  }
+
+  async sendApplicationNotification(
+    ngoEmail: string,
+    ngoName: string,
+    volunteerName: string,
+    taskTitle: string,
+    motivation: string
+  ): Promise<boolean> {
+    const subject = `New Application: ${volunteerName} for ${taskTitle}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2>New Volunteer Application</h2>
+        <p>Hello ${ngoName},</p>
+        <p>You have received a new application for your volunteer task <strong>"${taskTitle}"</strong>.</p>
+        
+        <div style="background: #f0f9ff; padding: 15px; border-left: 4px solid #0ea5e9; margin: 20px 0;">
+          <h3 style="margin: 0 0 10px 0;">Application Details:</h3>
+          <p style="margin: 5px 0;"><strong>Volunteer:</strong> ${volunteerName}</p>
+          <p style="margin: 5px 0;"><strong>Task:</strong> ${taskTitle}</p>
+          <p style="margin: 5px 0;"><strong>Motivation:</strong> ${motivation}</p>
+        </div>
+        
+        <p>Please log into your NGOConnect dashboard to review and respond to this application.</p>
+        
+        <p>Best regards,<br>The NGOConnect Team</p>
+      </div>
+    `;
+
+    return this.sendEmail(ngoEmail, subject, html);
+  }
+
+  async sendApplicationStatusNotification(
+    email: string, 
+    volunteerName: string, 
+    taskTitle: string, 
+    ngoName: string,
+    status: string
+  ): Promise<boolean> {
+    const subject = `Application ${status}: ${taskTitle}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2>Application Update</h2>
+        <p>Hello ${volunteerName},</p>
+        <p>Your application for the task <strong>"${taskTitle}"</strong> with ${ngoName} has been <strong>${status}</strong>.</p>
+        
+        ${status === 'approved' ? `
+          <div style="background: #f0f9ff; padding: 15px; border-left: 4px solid #0ea5e9; margin: 20px 0;">
+            <p style="margin: 0;"><strong>Congratulations!</strong> You've been approved for this volunteer opportunity.</p>
+          </div>
+        ` : `
+          <div style="background: #fef2f2; padding: 15px; border-left: 4px solid #ef4444; margin: 20px 0;">
+            <p style="margin: 0;">Unfortunately, your application was not approved this time.</p>
+          </div>
+        `}
+        
+        <p>Thank you for your interest in volunteering!</p>
+        <p>Best regards,<br>The NGOConnect Team</p>
+      </div>
+    `;
+
+    return this.sendEmail(email, subject, html);
+  }
 }
 
 export const emailService = new EmailService();
